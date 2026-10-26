@@ -23,7 +23,7 @@
 
 DARK LORD превращает игрока в проклятого повелителя тьмы. Он поднимает существ силой мысли и раздавливает их, уходит в форму бесплотного духа и проходит сквозь стены, а в форме тени становится чёрным силуэтом с белыми глазами и огромным плащом и пользуется тёмными способностями.
 
-Это отдельный мод из серии MINECRAFT-MODE: худ и лечение — [MINECRAFT-MODE-HUD](https://github.com/KUZURAKI/MINECRAFT-MODE-HUD), транспорт — [MINECRAFT-MODE-TECH](https://github.com/KUZURAKI/MINECRAFT-MODE-TECH), мобы — [MINECRAFT-MODE-MOB](https://github.com/KUZURAKI/MINECRAFT-MODE-MOB).
+Это отдельный мод из серии MINECRAFT-MODE: худ и лечение — [MINECRAFT-MODE-HUD](https://github.com/KUZURAKI/MINECRAFT-MODE-HUD), транспорт и рюкзак — [MINECRAFT-MODE-TECH](https://github.com/KUZURAKI/MINECRAFT-MODE-TECH), мобы — [MINECRAFT-MODE-MOB](https://github.com/KUZURAKI/MINECRAFT-MODE-MOB).
 
 ## Возможности
 
@@ -92,10 +92,24 @@ DARK LORD превращает игрока в проклятого повели
 ## Установка
 
 1. Установите **NeoForge 1.21.1** (версия 21.1.x).
-2. Скачайте `darklord-0.1.0.jar` и положите в папку `mods` вашей игры.
+2. Скачайте `darklord-*.jar` со страницы [Releases](https://github.com/KUZURAKI/MINECRAFT-MODE-DARKLORD/releases) и положите в папку `mods` вашей игры.
 3. Запустите игру.
 
 Мод работает сам по себе и совместим с остальными модами серии.
+
+## Релиз
+
+Сборка и релиз запускаются только по тегу. Обычные пуши ничего не публикуют.
+
+```bash
+git tag v0.1.0
+```
+
+```bash
+git push origin v0.1.0
+```
+
+GitHub Actions соберёт мод с версией из тега и выложит `darklord-0.1.0.jar` в Releases.
 
 ## Сборка
 
