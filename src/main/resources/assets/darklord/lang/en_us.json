@@ -1,0 +1,6 @@
+{
+  "death.attack.darklord_crush": "%1$s was crushed by a cursed will",
+  "death.attack.darklord_crush.player": "%1$s was crushed by the will of %2$s",
+  "death.attack.darklord_erase": "%1$s was erased into shadow",
+  "death.attack.darklord_erase.player": "%1$s was erased into shadow by %2$s"
+}

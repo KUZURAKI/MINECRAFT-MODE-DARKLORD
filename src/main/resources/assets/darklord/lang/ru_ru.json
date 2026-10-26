@@ -1,0 +1,6 @@
+{
+  "death.attack.darklord_crush": "%1$s раздавлен проклятой волей",
+  "death.attack.darklord_crush.player": "%1$s раздавлен волей %2$s",
+  "death.attack.darklord_erase": "%1$s стёрт в тень",
+  "death.attack.darklord_erase.player": "%1$s стёрт в тень игроком %2$s"
+}
