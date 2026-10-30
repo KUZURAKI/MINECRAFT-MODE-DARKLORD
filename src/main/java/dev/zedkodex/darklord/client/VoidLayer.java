@@ -8,7 +8,6 @@ import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.util.Mth;
@@ -27,35 +26,7 @@ public class VoidLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<Abs
                        float limbSwingAmount, float partialTick, float ageInTicks, float netHeadYaw, float headPitch) {
         float f = VoidClient.form(player);
         if (f <= 0.01f || player.isInvisible()) return;
-        int color = ((int) (f * 252) << 24) | 0x040406;
-        getParentModel().renderToBuffer(pose, buffer.getBuffer(RenderType.entityTranslucent(player.getSkin().texture())), light,
-                LivingEntityRenderer.getOverlayCoords(player, 0f), color);
-        eyes(pose, buffer, f, ageInTicks);
         cape(pose, buffer, player, f, partialTick, ageInTicks);
-    }
-
-    private void eyes(PoseStack pose, MultiBufferSource buffer, float f, float age) {
-        pose.pushPose();
-        getParentModel().head.translateAndRotate(pose);
-        Matrix4f m = pose.last().pose();
-        VertexConsumer vc = buffer.getBuffer(RenderType.lightning());
-        float flick = 0.85f + 0.15f * Mth.sin(age * 0.7f);
-        int a = (int) (255 * f * flick);
-        float z = -4.02f / 16f;
-        for (int s = -1; s <= 1; s += 2) {
-            float x0 = s * 1f / 16f;
-            float x1 = s * 3f / 16f;
-            rect(vc, m, Math.min(x0, x1), -4.6f / 16f, Math.max(x0, x1), -3.6f / 16f, z, 255, 255, 255, a);
-            rect(vc, m, Math.min(x0, x1) - 0.03f, -4.9f / 16f, Math.max(x0, x1) + 0.03f, -3.3f / 16f, z - 0.002f, 200, 220, 255, a / 4);
-        }
-        pose.popPose();
-    }
-
-    private static void rect(VertexConsumer vc, Matrix4f m, float x0, float y0, float x1, float y1, float z, int r, int g, int b, int a) {
-        vc.addVertex(m, x0, y0, z).setColor(r, g, b, a);
-        vc.addVertex(m, x0, y1, z).setColor(r, g, b, a);
-        vc.addVertex(m, x1, y1, z).setColor(r, g, b, a);
-        vc.addVertex(m, x1, y0, z).setColor(r, g, b, a);
     }
 
     private void cape(PoseStack pose, MultiBufferSource buffer, AbstractClientPlayer p, float f, float pt, float age) {

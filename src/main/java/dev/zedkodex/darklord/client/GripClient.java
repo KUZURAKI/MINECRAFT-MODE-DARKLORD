@@ -57,7 +57,7 @@ public final class GripClient {
     }
 
     private static boolean able(Minecraft mc, LocalPlayer p) {
-        return mc.screen == null && p.getMainHandItem().isEmpty() && !p.isSpectator();
+        return mc.screen == null && !p.isSpectator() && VoidClient.isOn(p);
     }
 
     static int pick(ClientLevel lv, LocalPlayer p) {

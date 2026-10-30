@@ -67,7 +67,7 @@ public final class Grip {
     }
 
     private static void start(ServerPlayer p, int id) {
-        if (p.isSpectator() || !p.getMainHandItem().isEmpty()) return;
+        if (p.isSpectator() || !VoidForm.isVoid(p)) return;
         Entity e = p.level().getEntity(id);
         if (!valid(p, e)) return;
         Hold h = new Hold();
@@ -123,7 +123,7 @@ public final class Grip {
         Hold h = holds.get(p.getUUID());
         if (h == null) return;
         Entity e = p.level().getEntity(h.target);
-        if (!p.isAlive() || p.isSpectator() || !p.getMainHandItem().isEmpty() || !valid(p, e)) {
+        if (!p.isAlive() || p.isSpectator() || !VoidForm.isVoid(p) || !valid(p, e)) {
             holds.remove(p.getUUID());
             return;
         }

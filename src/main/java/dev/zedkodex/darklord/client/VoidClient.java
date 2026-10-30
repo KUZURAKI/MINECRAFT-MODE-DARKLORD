@@ -14,18 +14,14 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.entity.player.PlayerRenderer;
-import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
-import net.neoforged.neoforge.client.event.RenderArmEvent;
 import net.neoforged.neoforge.client.event.RenderLivingEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
@@ -50,7 +46,6 @@ public final class VoidClient {
 
     private static final Map<Integer, State> states = new HashMap<>();
     private static long abilityMs;
-    private static boolean inArm;
 
     public static void apply(VoidPayload msg) {
         State old = states.get(msg.entityId());
@@ -152,27 +147,11 @@ public final class VoidClient {
         if (event.getEntity() instanceof Player pl && isOn(pl) && !pl.onGround()) pl.walkAnimation.setSpeed(0f);
     }
 
-    @SubscribeEvent
-    static void onArm(RenderArmEvent event) {
-        AbstractClientPlayer p = event.getPlayer();
-        float f = form(p);
-        if (f <= 0.01f || inArm) return;
-        Minecraft mc = Minecraft.getInstance();
-        PlayerRenderer renderer = (PlayerRenderer) mc.getEntityRenderDispatcher().getRenderer(p);
-        event.setCanceled(true);
-        boolean right = event.getArm() == HumanoidArm.RIGHT;
-        inArm = true;
-        try {
-            if (right) renderer.renderRightHand(event.getPoseStack(), event.getMultiBufferSource(), event.getPackedLight(), p);
-            else renderer.renderLeftHand(event.getPoseStack(), event.getMultiBufferSource(), event.getPackedLight(), p);
-        } finally {
-            inArm = false;
-        }
-        var model = renderer.getModel();
-        int color = ((int) (f * 250) << 24) | 0x040406;
-        var vc = event.getMultiBufferSource().getBuffer(RenderType.entityTranslucent(p.getSkin().texture()));
-        (right ? model.rightArm : model.leftArm).render(event.getPoseStack(), vc, event.getPackedLight(), OverlayTexture.NO_OVERLAY, color);
-        (right ? model.rightSleeve : model.leftSleeve).render(event.getPoseStack(), vc, event.getPackedLight(), OverlayTexture.NO_OVERLAY, color);
+    private static final ResourceLocation VOID_SKIN = ResourceLocation.fromNamespaceAndPath(DarkLord.MODID, "textures/entity/void_skin.png");
+
+    public static PlayerSkin skin(AbstractClientPlayer p, PlayerSkin original) {
+        if (original == null || form(p) < 0.5f) return null;
+        return new PlayerSkin(VOID_SKIN, null, null, null, original.model(), original.secure());
     }
 
     private static void menu(GuiGraphics g, Minecraft mc, long now) {
