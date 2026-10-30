@@ -8,6 +8,7 @@ import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.util.Mth;
@@ -26,10 +27,10 @@ public class VoidLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<Abs
                        float limbSwingAmount, float partialTick, float ageInTicks, float netHeadYaw, float headPitch) {
         float f = VoidClient.form(player);
         if (f <= 0.01f || player.isInvisible()) return;
-        cape(pose, buffer, player, f, partialTick, ageInTicks);
+        cape(pose, buffer, player, f, partialTick, ageInTicks, light);
     }
 
-    private void cape(PoseStack pose, MultiBufferSource buffer, AbstractClientPlayer p, float f, float pt, float age) {
+    private void cape(PoseStack pose, MultiBufferSource buffer, AbstractClientPlayer p, float f, float pt, float age, int light) {
         double dx = p.getX() - p.xo;
         double dz = p.getZ() - p.zo;
         double dy = p.getY() - p.yo;
@@ -67,24 +68,31 @@ public class VoidLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<Abs
                 z += Mth.sin(a) * dl;
             }
         }
-        VertexConsumer vc = buffer.getBuffer(RenderType.debugQuads());
-        int alpha = (int) (250 * f);
+        VertexConsumer vc = buffer.getBuffer(RenderType.entityTranslucent(VoidClient.VOID_SKIN));
+        PoseStack.Pose last = pose.last();
+        int color = ((int) (255 * f) << 24) | 0xFFFFFF;
+        float u = 2f / 64f;
+        float v = 2f / 64f;
         for (int r = 0; r < ROWS; r++) {
             for (int c = 0; c < COLS; c++) {
                 float ax = px[r + 1][c] - px[r][c], ay = py[r + 1][c] - py[r][c], az = pz[r + 1][c] - pz[r][c];
                 float bx = px[r][c + 1] - px[r][c], by = py[r][c + 1] - py[r][c], bz = pz[r][c + 1] - pz[r][c];
                 float nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
                 float len = Mth.sqrt(nx * nx + ny * ny + nz * nz) + 1e-6f;
-                float shade = Math.abs((nx * 0.3f - ny * 0.6f + nz * 0.74f) / len);
-                float edge = (c == 0 || c == COLS - 1 || r == ROWS - 1) ? 1f : 0f;
-                int col = (int) (6 + 22 * shade + 10 * edge);
-                int red = col + (int) (6 * edge);
-                vc.addVertex(m, px[r][c], py[r][c], pz[r][c]).setColor(red, col, col + 3, alpha);
-                vc.addVertex(m, px[r + 1][c], py[r + 1][c], pz[r + 1][c]).setColor(red, col, col + 3, alpha);
-                vc.addVertex(m, px[r + 1][c + 1], py[r + 1][c + 1], pz[r + 1][c + 1]).setColor(red, col, col + 3, alpha);
-                vc.addVertex(m, px[r][c + 1], py[r][c + 1], pz[r][c + 1]).setColor(red, col, col + 3, alpha);
+                nx /= len;
+                ny /= len;
+                nz /= len;
+                vertex(vc, m, last, px[r][c], py[r][c], pz[r][c], u, v, color, light, nx, ny, nz);
+                vertex(vc, m, last, px[r + 1][c], py[r + 1][c], pz[r + 1][c], u, v, color, light, nx, ny, nz);
+                vertex(vc, m, last, px[r + 1][c + 1], py[r + 1][c + 1], pz[r + 1][c + 1], u, v, color, light, nx, ny, nz);
+                vertex(vc, m, last, px[r][c + 1], py[r][c + 1], pz[r][c + 1], u, v, color, light, nx, ny, nz);
             }
         }
         pose.popPose();
+    }
+
+    private static void vertex(VertexConsumer vc, Matrix4f m, PoseStack.Pose last, float x, float y, float z, float u, float v,
+                               int color, int light, float nx, float ny, float nz) {
+        vc.addVertex(m, x, y, z).setColor(color).setUv(u, v).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(last, nx, ny, nz);
     }
 }

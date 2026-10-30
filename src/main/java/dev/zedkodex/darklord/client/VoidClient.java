@@ -133,10 +133,12 @@ public final class VoidClient {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             states.clear();
+            VoidSkins.retain(java.util.Set.of());
             return;
         }
         long now = Util.getMillis();
         states.entrySet().removeIf(e -> !e.getValue().on() && now - e.getValue().changeMs() > FORM_MS);
+        VoidSkins.retain(states.keySet());
         for (Player pl : mc.level.players()) {
             if (isOn(pl) && !pl.onGround()) pl.walkAnimation.setSpeed(0f);
         }
@@ -147,11 +149,14 @@ public final class VoidClient {
         if (event.getEntity() instanceof Player pl && isOn(pl) && !pl.onGround()) pl.walkAnimation.setSpeed(0f);
     }
 
-    private static final ResourceLocation VOID_SKIN = ResourceLocation.fromNamespaceAndPath(DarkLord.MODID, "textures/entity/void_skin.png");
+    public static final ResourceLocation VOID_SKIN = ResourceLocation.fromNamespaceAndPath(DarkLord.MODID, "textures/entity/void_skin.png");
 
     public static PlayerSkin skin(AbstractClientPlayer p, PlayerSkin original) {
-        if (original == null || form(p) < 0.5f) return null;
-        return new PlayerSkin(VOID_SKIN, null, null, null, original.model(), original.secure());
+        float f = form(p);
+        if (original == null || f <= 0.01f) return null;
+        ResourceLocation id = VoidSkins.get(p.getId(), original.texture(), f);
+        if (id == null) return null;
+        return new PlayerSkin(id, null, f > 0.3f ? null : original.capeTexture(), original.elytraTexture(), original.model(), original.secure());
     }
 
     private static void menu(GuiGraphics g, Minecraft mc, long now) {
