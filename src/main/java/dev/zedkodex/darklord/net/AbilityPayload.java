@@ -15,8 +15,10 @@ public record AbilityPayload(int ability, int target) implements CustomPacketPay
     public static final int CLEAVE = 4;
     public static final int DEVOUR = 5;
     public static final int SINGULARITY = 6;
-    public static final int COUNT = 7;
-    public static final int[] COOLDOWN = {10, 20, 80, 120, 40, 100, 240};
+    public static final int LIGHTNING = 7;
+    public static final int CATACLYSM = 8;
+    public static final int COUNT = 9;
+    public static final int[] COOLDOWN = {10, 20, 80, 120, 40, 100, 240, 60, 600};
 
     public static final Type<AbilityPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(DarkLord.MODID, "ability"));
 

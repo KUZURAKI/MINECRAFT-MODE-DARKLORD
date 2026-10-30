@@ -121,14 +121,82 @@ public final class VoidForm {
             case AbilityPayload.CLEAVE -> cleave(p);
             case AbilityPayload.DEVOUR -> devour(p);
             case AbilityPayload.SINGULARITY -> singularity(p);
+            case AbilityPayload.LIGHTNING -> lightning(p, target);
+            case AbilityPayload.CATACLYSM -> cataclysm(p);
             default -> {
             }
         }
+        if (ability != AbilityPayload.CATACLYSM) fx(p, FxPayload.CAST, -1, hand(p), p.getYRot());
+    }
+
+    private static Vec3 hand(ServerPlayer p) {
+        Vec3 look = p.getLookAngle();
+        Vec3 right = look.cross(new Vec3(0, 1, 0)).normalize();
+        return p.getEyePosition().add(look.scale(0.6)).add(right.scale(0.35)).add(0, -0.3, 0);
+    }
+
+    private static void fx2(ServerPlayer p, int kind, int target, Vec3 a, Vec3 b, double range) {
+        PacketDistributor.sendToPlayersNear(p.serverLevel(), null, a.x, a.y, a.z, range,
+                new FxPayload(kind, p.getId(), target, a.x, a.y, a.z, b.x, b.y, b.z, p.getYRot()));
+    }
+
+    private static void lightning(ServerPlayer p, int id) {
+        ServerLevel sl = p.serverLevel();
+        LivingEntity t = pickTarget(p, id, 32);
+        bolt(sl, p.position());
+        fx2(p, FxPayload.LIGHTNING, t == null ? -1 : t.getId(), p.position(), t == null ? aim(p, 30) : t.position(), 128);
+        sl.playSound(null, p.blockPosition(), SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, 2.0f, 0.8f);
+        if (t != null) delayed.add(new Delayed(sl, p.getUUID(), t.getId(), sl.getGameTime() + 14, 3));
+    }
+
+    private static void bolt(ServerLevel sl, Vec3 at) {
+        net.minecraft.world.entity.LightningBolt b = net.minecraft.world.entity.EntityType.LIGHTNING_BOLT.create(sl);
+        if (b == null) return;
+        b.moveTo(at);
+        b.setVisualOnly(true);
+        sl.addFreshEntity(b);
+    }
+
+    private record Blast(ServerLevel level, Vec3 pos, UUID owner, long due) {}
+
+    private static final List<Blast> blasts = new ArrayList<>();
+
+    private static void cataclysm(ServerPlayer p) {
+        ServerLevel sl = p.serverLevel();
+        Vec3 eye = p.getEyePosition();
+        Vec3 end = eye.add(p.getLookAngle().scale(90));
+        HitResult hit = sl.clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, p));
+        Vec3 c = hit.getType() == HitResult.Type.MISS ? eye.add(p.getLookAngle().scale(60)) : hit.getLocation();
+        fx2(p, FxPayload.CATACLYSM, -1, c, p.getEyePosition(), 320);
+        blasts.add(new Blast(sl, c, p.getUUID(), sl.getGameTime() + 54));
+        sl.playSound(null, p.blockPosition(), SoundEvents.WARDEN_EMERGE, SoundSource.PLAYERS, 3.0f, 0.5f);
+        sl.playSound(null, net.minecraft.core.BlockPos.containing(c), SoundEvents.BEACON_POWER_SELECT, SoundSource.PLAYERS, 6.0f, 0.5f);
+    }
+
+    private static boolean stepBlast(Blast b) {
+        ServerLevel sl = b.level();
+        if (sl.getGameTime() < b.due()) return false;
+        Vec3 c = b.pos();
+        ServerPlayer owner = sl.getServer().getPlayerList().getPlayer(b.owner());
+        DamageSource src = owner != null ? sl.damageSources().indirectMagic(owner, owner) : sl.damageSources().magic();
+        for (LivingEntity e : sl.getEntitiesOfClass(LivingEntity.class, new AABB(c, c).inflate(34), e -> e != owner && e.isAlive())) {
+            double d = e.position().distanceTo(c);
+            if (d > 34) continue;
+            if (e instanceof ServerPlayer sp && (sp.isCreative() || sp.isSpectator())) continue;
+            e.hurt(src, (float) (60 * (1 - d / 40)));
+            e.setDeltaMovement(e.position().subtract(c).normalize().scale(2.5 * (1 - d / 40)).add(0, 0.9, 0));
+            e.hurtMarked = true;
+        }
+        net.minecraft.core.BlockPos bp = net.minecraft.core.BlockPos.containing(c);
+        sl.playSound(null, bp, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 12.0f, 0.4f);
+        sl.playSound(null, bp, SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 10.0f, 0.5f);
+        sl.playSound(null, bp, SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, 12.0f, 0.6f);
+        return true;
     }
 
     private static void fx(ServerPlayer p, int kind, int target, Vec3 pos, float yaw) {
         PacketDistributor.sendToPlayersNear(p.serverLevel(), null, pos.x, pos.y, pos.z, 96,
-                new FxPayload(kind, p.getId(), target, pos.x, pos.y, pos.z, yaw));
+                new FxPayload(kind, p.getId(), target, pos.x, pos.y, pos.z, pos.x, pos.y, pos.z, yaw));
     }
 
     private static Vec3 ground(ServerLevel sl, Vec3 at) {
@@ -178,6 +246,7 @@ public final class VoidForm {
                 break;
             }
         }
+        fx2(p, FxPayload.DASH, -1, from.add(0, 1, 0), dest.add(0, 1, 0), 96);
         line(sl, from.add(0, 1, 0), dest.add(0, 1, 0), SHADOW, 0.4);
         line(sl, from.add(0, 1, 0), dest.add(0, 1, 0), ParticleTypes.SQUID_INK, 1.2);
         sl.sendParticles(ParticleTypes.REVERSE_PORTAL, from.x, from.y + 1, from.z, 30, 0.3, 0.8, 0.3, 0.1);
@@ -252,6 +321,14 @@ public final class VoidForm {
         Entity e = sl.getEntity(d.target());
         if (!(e instanceof LivingEntity le) || !le.isAlive()) return true;
         ServerPlayer owner = sl.getServer().getPlayerList().getPlayer(d.owner());
+        if (d.kind() == 3) {
+            bolt(sl, le.position());
+            le.invulnerableTime = 0;
+            le.hurt(owner != null ? sl.damageSources().indirectMagic(owner, owner) : sl.damageSources().magic(), 18f);
+            le.igniteForSeconds(5f);
+            sl.playSound(null, le.blockPosition(), SoundEvents.LIGHTNING_BOLT_IMPACT, SoundSource.PLAYERS, 2.0f, 0.7f);
+            return true;
+        }
         if (d.kind() == 0) {
             le.setDeltaMovement(new Vec3(0, 1.1, 0));
             le.hurtMarked = true;
@@ -289,6 +366,7 @@ public final class VoidForm {
         float healed = 0;
         for (LivingEntity e : sl.getEntitiesOfClass(LivingEntity.class, p.getBoundingBox().inflate(10), e -> e != p && e.isAlive())) {
             Vec3 from = e.position().add(0, e.getBbHeight() / 2, 0);
+            fx2(p, FxPayload.DEVOUR, e.getId(), from, p.position().add(0, 1, 0), 96);
             line(sl, from, p.position().add(0, 1, 0), new DustParticleOptions(new Vector3f(0.5f, 0.0f, 0.05f), 1.2f), 0.3);
             sl.sendParticles(ParticleTypes.SOUL, from.x, from.y, from.z, 4, 0.2, 0.3, 0.2, 0.02);
             if (e.hurt(src, 5f)) healed += 2f;
@@ -302,6 +380,7 @@ public final class VoidForm {
         ServerLevel sl = p.serverLevel();
         Vec3 c = aim(p, 26);
         holes.add(new Hole(sl, c, p.getUUID(), sl.getGameTime()));
+        fx(p, FxPayload.SINGULARITY, -1, c, 0f);
         sl.playSound(null, net.minecraft.core.BlockPos.containing(c), SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 1.5f, 0.4f);
     }
 
@@ -316,6 +395,7 @@ public final class VoidForm {
         if (le instanceof ServerPlayer sp && (sp.isCreative() || sp.isSpectator())) return;
         for (Dissolve d : dissolves) if (d.target() == id) return;
         dissolves.add(new Dissolve(sl, id, p.getUUID(), sl.getGameTime()));
+        fx(p, FxPayload.ERASE, id, le.position(), 0f);
         sl.playSound(null, le.blockPosition(), SoundEvents.SOUL_ESCAPE.value(), SoundSource.PLAYERS, 1.5f, 0.4f);
         sl.playSound(null, le.blockPosition(), SoundEvents.FIRE_EXTINGUISH, SoundSource.PLAYERS, 1.0f, 0.5f);
     }
@@ -324,6 +404,7 @@ public final class VoidForm {
     static void onServerTick(ServerTickEvent.Post event) {
         dissolves.removeIf(VoidForm::stepDissolve);
         delayed.removeIf(VoidForm::stepDelayed);
+        blasts.removeIf(VoidForm::stepBlast);
         holes.removeIf(VoidForm::stepHole);
     }
 

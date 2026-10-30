@@ -24,5 +24,6 @@ public class ClientModEvents {
         event.registerAboveAll(ResourceLocation.fromNamespaceAndPath(DarkLord.MODID, "curse"), GripClient::overlay);
         event.registerAboveAll(WraithClient.LAYER, WraithClient::overlay);
         event.registerAboveAll(VoidClient.LAYER, VoidClient::overlay);
+        event.registerAboveAll(ResourceLocation.fromNamespaceAndPath(DarkLord.MODID, "fx"), FxKit::overlay);
     }
 }

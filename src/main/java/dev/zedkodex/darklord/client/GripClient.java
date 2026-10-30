@@ -43,6 +43,7 @@ public final class GripClient {
     static int gripId = -1;
     static long gripMs;
     static long crushMs;
+    static long castMs;
     static long releaseMs;
     static int variant;
     static int seed;
@@ -172,7 +173,7 @@ public final class GripClient {
     @SubscribeEvent
     static void onHand(RenderHandEvent event) {
         long now = Util.getMillis();
-        float crush = 1f - Gfx.clamp((now - crushMs) / 450f);
+        float crush = Math.max(1f - Gfx.clamp((now - crushMs) / 450f), now - castMs < 1300 ? 1f - Gfx.clamp((now - castMs - 1000) / 300f) : 0f);
         if (event.getHand() != InteractionHand.MAIN_HAND || (!gripping && crush <= 0f)) return;
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer p = mc.player;

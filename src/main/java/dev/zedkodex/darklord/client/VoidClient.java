@@ -32,9 +32,9 @@ public final class VoidClient {
 
     public static final ResourceLocation LAYER = ResourceLocation.fromNamespaceAndPath(DarkLord.MODID, "void");
     private static final float FORM_MS = 1400f;
-    private static final String[] NAMES = {"СТИРАНИЕ", "ТЕНЕВОЙ РЫВОК", "ДЛАНИ БЕЗДНЫ", "ПРЕИСПОДНЯЯ", "РАЗРУБ", "ПОЖИРАНИЕ", "СИНГУЛЯРНОСТЬ"};
+    private static final String[] NAMES = {"СТИРАНИЕ", "ТЕНЕВОЙ РЫВОК", "ДЛАНИ БЕЗДНЫ", "ПРЕИСПОДНЯЯ", "РАЗРУБ", "ПОЖИРАНИЕ", "СИНГУЛЯРНОСТЬ", "КАРА НЕБЕС", "КАТАКЛИЗМ"};
     private static final String[] HINTS = {"стереть цель в тень", "рывок сквозь тьму", "руки из порталов", "утащить цель под землю",
-            "клинок тьмы перед собой", "выпить жизнь вокруг", "чёрная дыра по взгляду"};
+            "клинок тьмы перед собой", "выпить жизнь вокруг", "чёрная дыра по взгляду", "молния в тебя и из руки в цель", "ночь и взрыв белого света"};
     private static final long[] lastCast = new long[AbilityPayload.COUNT];
     private static int selected;
     private static long scrollMs;
