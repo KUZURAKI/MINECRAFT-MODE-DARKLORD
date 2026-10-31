@@ -176,6 +176,10 @@ public final class GripFx {
     }
 
     private static void beam(MultiBufferSource.BufferSource bs, Vec3 cam, Vec3 start, Vec3 end, float open, float time) {
+        beam(bs, cam, start, end, open, time, 0x1E5AFF, 0x96DCFF, 1f);
+    }
+
+    static void beam(MultiBufferSource bs, Vec3 cam, Vec3 start, Vec3 end, float open, float time, int outer, int core, float mul) {
         Vec3 axis = end.subtract(start).normalize();
         Vec3 u = axis.cross(new Vec3(0, 1, 0));
         if (u.lengthSqr() < 1e-4) u = new Vec3(1, 0, 0);
@@ -193,7 +197,7 @@ public final class GripFx {
                 pts[i] = curve(start, end, t, 0.0).add(u.scale(Math.cos(ang) * rad)).add(v.scale(Math.sin(ang) * rad));
                 wd[i] = (float) (0.025 + 0.07 * t);
                 float reach = Gfx.clamp(open * 1.3f - (float) t * 0.3f);
-                al[i] = reach * Gfx.clamp((float) (t - 0.05) / 0.3f) * 0.9f;
+                al[i] = reach * Gfx.clamp((float) (t - 0.05) / 0.3f) * 0.9f * mul;
             }
             ribbon(dark, cam, pts, wd, 6, 0, 14, al);
         }
@@ -208,10 +212,10 @@ public final class GripFx {
                 pts[i] = curve(start, end, t, 0.0).add(v.scale(Math.sin(t * 9 - time * 5) * 0.05));
                 wd[i] = (float) ((layer == 0 ? 0.22 : 0.06) * (0.3 + 0.7 * t) * flick);
                 float reach = Gfx.clamp(open * 1.3f - (float) t * 0.3f);
-                al[i] = reach * Gfx.clamp((float) (t - 0.15) / 0.35f) * (layer == 0 ? 0.35f : 0.8f);
+                al[i] = reach * Gfx.clamp((float) (t - 0.15) / 0.35f) * (layer == 0 ? 0.35f : 0.8f) * mul;
             }
-            if (layer == 0) ribbon(glow, cam, pts, wd, 30, 90, 255, al);
-            else ribbon(glow, cam, pts, wd, 150, 220, 255, al);
+            int c = layer == 0 ? outer : core;
+            ribbon(glow, cam, pts, wd, c >> 16 & 255, c >> 8 & 255, c & 255, al);
         }
     }
 

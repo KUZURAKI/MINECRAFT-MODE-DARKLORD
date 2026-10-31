@@ -85,7 +85,6 @@ public final class VoidForm {
                 p.resetFallDistance();
                 p.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 60, 0, false, false));
             }
-            sl.sendParticles(SHADOW, c.x, c.y, c.z, 50, 0.4, 0.9, 0.4, 0.0);
             sl.sendParticles(ParticleTypes.REVERSE_PORTAL, c.x, c.y, c.z, 40, 0.4, 0.9, 0.4, 0.05);
             sl.playSound(null, p.blockPosition(), SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.PLAYERS, 1.0f, 0.6f);
             sync(p, false);
@@ -93,8 +92,6 @@ public final class VoidForm {
             active.add(p.getUUID());
             p.getAbilities().mayfly = true;
             p.onUpdateAbilities();
-            sl.sendParticles(SHADOW, c.x, c.y, c.z, 80, 0.5, 1.0, 0.5, 0.0);
-            sl.sendParticles(ParticleTypes.SQUID_INK, c.x, c.y, c.z, 50, 0.4, 0.9, 0.4, 0.1);
             sl.playSound(null, p.blockPosition(), SoundEvents.WARDEN_EMERGE, SoundSource.PLAYERS, 0.8f, 0.7f);
             sl.playSound(null, p.blockPosition(), SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 1.0f, 0.5f);
             sync(p, true);
@@ -123,6 +120,7 @@ public final class VoidForm {
             case AbilityPayload.SINGULARITY -> singularity(p);
             case AbilityPayload.LIGHTNING -> lightning(p, target);
             case AbilityPayload.CATACLYSM -> cataclysm(p);
+            case AbilityPayload.HEARTBEAT -> heartbeat(p);
             default -> {
             }
         }
@@ -147,6 +145,12 @@ public final class VoidForm {
         fx2(p, FxPayload.LIGHTNING, t == null ? -1 : t.getId(), p.position(), t == null ? aim(p, 30) : t.position(), 128);
         sl.playSound(null, p.blockPosition(), SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, 2.0f, 0.8f);
         if (t != null) delayed.add(new Delayed(sl, p.getUUID(), t.getId(), sl.getGameTime() + 14, 3));
+    }
+
+    private static void heartbeat(ServerPlayer p) {
+        Vec3 c = p.position();
+        PacketDistributor.sendToPlayer(p, new FxPayload(FxPayload.HEARTBEAT, p.getId(), -1, c.x, c.y, c.z, c.x, c.y, c.z, p.getYRot()));
+        p.serverLevel().playSound(null, p.blockPosition(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 1.5f, 0.7f);
     }
 
     private static void bolt(ServerLevel sl, Vec3 at) {
@@ -247,12 +251,9 @@ public final class VoidForm {
             }
         }
         fx2(p, FxPayload.DASH, -1, from.add(0, 1, 0), dest.add(0, 1, 0), 96);
-        line(sl, from.add(0, 1, 0), dest.add(0, 1, 0), SHADOW, 0.4);
-        line(sl, from.add(0, 1, 0), dest.add(0, 1, 0), ParticleTypes.SQUID_INK, 1.2);
         sl.sendParticles(ParticleTypes.REVERSE_PORTAL, from.x, from.y + 1, from.z, 30, 0.3, 0.8, 0.3, 0.1);
         p.teleportTo(dest.x, dest.y, dest.z);
         p.resetFallDistance();
-        sl.sendParticles(SHADOW, dest.x, dest.y + 1, dest.z, 40, 0.4, 0.8, 0.4, 0.0);
         sl.playSound(null, p.blockPosition(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0f, 0.4f);
     }
 
@@ -269,7 +270,6 @@ public final class VoidForm {
             if (n++ >= 8) break;
             Vec3 g = ground(sl, e.position());
             fx(p, FxPayload.HANDS, e.getId(), g, 0f);
-            sl.sendParticles(SHADOW, g.x, g.y + 0.1, g.z, 20, 0.5, 0.05, 0.5, 0.0);
             delayed.add(new Delayed(sl, p.getUUID(), e.getId(), sl.getGameTime() + 7, 0));
         }
         sl.playSound(null, p.blockPosition(), SoundEvents.WARDEN_DIG, SoundSource.PLAYERS, 1.2f, 0.6f);
@@ -334,7 +334,6 @@ public final class VoidForm {
             le.hurtMarked = true;
             le.hurt(owner != null ? sl.damageSources().indirectMagic(owner, owner) : sl.damageSources().magic(), 9f);
             le.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 3, false, true));
-            sl.sendParticles(ParticleTypes.SQUID_INK, le.getX(), le.getY() + 0.5, le.getZ(), 25, 0.4, 0.4, 0.4, 0.1);
             sl.playSound(null, le.blockPosition(), SoundEvents.WARDEN_ATTACK_IMPACT, SoundSource.PLAYERS, 1.0f, 0.6f);
             return true;
         }
@@ -346,7 +345,6 @@ public final class VoidForm {
         }
         le.setNoGravity(true);
         le.teleportTo(le.getX(), le.getY() - 0.075, le.getZ());
-        sl.sendParticles(SHADOW, le.getX(), le.getY() + 0.1, le.getZ(), 6, le.getBbWidth() * 0.7, 0.05, le.getBbWidth() * 0.7, 0.0);
         if (sl.random.nextInt(3) == 0) sl.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, le.getX(), le.getY() + 0.1, le.getZ(), 3, 0.6, 0.1, 0.6, 0.02);
         if (d.kind() == 2) {
             le.setNoGravity(false);
@@ -415,9 +413,6 @@ public final class VoidForm {
         float h = le.getBbHeight();
         float w = le.getBbWidth();
         double y = le.getY() + h * (1 - age / 12.0);
-        d.level().sendParticles(SHADOW, le.getX(), y, le.getZ(), 18, w * 0.5, 0.1, w * 0.5, 0.0);
-        d.level().sendParticles(ASH, le.getX(), y, le.getZ(), 8, w * 0.5, 0.1, w * 0.5, 0.03);
-        d.level().sendParticles(ParticleTypes.SQUID_INK, le.getX(), y, le.getZ(), 3, w * 0.4, 0.1, w * 0.4, 0.02);
         le.setDeltaMovement(Vec3.ZERO);
         le.hurtMarked = true;
         if (age < 12) return false;
@@ -438,10 +433,8 @@ public final class VoidForm {
         for (int i = 0; i < 6; i++) {
             double a = t * 6 + i * Math.PI / 3;
             double r = 2.5 - (age % 20) / 10.0;
-            sl.sendParticles(SHADOW, c.x + Math.cos(a) * r, c.y + Math.sin(t * 3 + i) * 0.5, c.z + Math.sin(a) * r, 1, 0, 0, 0, 0.0);
         }
         sl.sendParticles(ParticleTypes.REVERSE_PORTAL, c.x, c.y, c.z, 6, 1.5, 1.5, 1.5, 0.05);
-        sl.sendParticles(ParticleTypes.SQUID_INK, c.x, c.y, c.z, 2, 0.1, 0.1, 0.1, 0.0);
         ServerPlayer owner = sl.getServer().getPlayerList().getPlayer(hole.owner());
         for (Entity e : sl.getEntities((Entity) null, new AABB(c, c).inflate(9), e -> (e instanceof LivingEntity || e instanceof ItemEntity) && e != owner)) {
             Vec3 pull = c.subtract(e.position().add(0, e.getBbHeight() / 2, 0));
@@ -458,8 +451,6 @@ public final class VoidForm {
             e.hurtMarked = true;
         }
         sl.sendParticles(ParticleTypes.SONIC_BOOM, c.x, c.y, c.z, 1, 0, 0, 0, 0.0);
-        sl.sendParticles(SHADOW, c.x, c.y, c.z, 120, 2, 2, 2, 0.0);
-        sl.sendParticles(ParticleTypes.SQUID_INK, c.x, c.y, c.z, 80, 0.5, 0.5, 0.5, 0.4);
         sl.playSound(null, net.minecraft.core.BlockPos.containing(c), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.5f, 0.4f);
         sl.playSound(null, net.minecraft.core.BlockPos.containing(c), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.2f, 0.5f);
         return true;
@@ -474,8 +465,6 @@ public final class VoidForm {
         }
         if (p.tickCount % 3 == 0) {
             ServerLevel sl = p.serverLevel();
-            sl.sendParticles(SHADOW, p.getX(), p.getY() + 0.9, p.getZ(), 1, 0.3, 0.6, 0.3, 0.0);
-            if (p.getRandom().nextInt(4) == 0) sl.sendParticles(ParticleTypes.SMOKE, p.getX(), p.getY() + 0.1, p.getZ(), 1, 0.3, 0.0, 0.3, 0.01);
         }
     }
 

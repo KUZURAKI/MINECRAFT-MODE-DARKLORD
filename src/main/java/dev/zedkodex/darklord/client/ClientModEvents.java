@@ -25,5 +25,6 @@ public class ClientModEvents {
         event.registerAboveAll(WraithClient.LAYER, WraithClient::overlay);
         event.registerAboveAll(VoidClient.LAYER, VoidClient::overlay);
         event.registerAboveAll(ResourceLocation.fromNamespaceAndPath(DarkLord.MODID, "fx"), FxKit::overlay);
+        event.registerAboveAll(ResourceLocation.fromNamespaceAndPath(DarkLord.MODID, "heartbeat"), Heartbeat::overlay);
     }
 }

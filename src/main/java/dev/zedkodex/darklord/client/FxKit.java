@@ -298,12 +298,6 @@ public final class FxKit {
     static void burst(ClientLevel lv, Vec3 at, int kind) {
         RandomSource r = lv.random;
         switch (kind) {
-            case FxPayload.CAST -> {
-                for (int i = 0; i < 12; i++) {
-                    lv.addParticle(ParticleTypes.REVERSE_PORTAL, at.x, at.y, at.z, (r.nextDouble() - 0.5) * 0.3, (r.nextDouble() - 0.5) * 0.3, (r.nextDouble() - 0.5) * 0.3);
-                }
-                lv.addParticle(ParticleTypes.SQUID_INK, at.x, at.y, at.z, 0, 0.02, 0);
-            }
             case FxPayload.HANDS, FxPayload.ABYSS -> {
                 debris(lv, at, kind == FxPayload.ABYSS ? 50 : 24, 0.25);
                 for (int i = 0; i < 20; i++) {
@@ -313,11 +307,6 @@ public final class FxKit {
             case FxPayload.CLEAVE -> {
                 for (int i = 0; i < 30; i++) {
                     lv.addParticle(ParticleTypes.ELECTRIC_SPARK, at.x, at.y, at.z, (r.nextDouble() - 0.5) * 1.2, (r.nextDouble() - 0.2) * 0.6, (r.nextDouble() - 0.5) * 1.2);
-                }
-            }
-            case FxPayload.DASH -> {
-                for (int i = 0; i < 25; i++) {
-                    lv.addParticle(ParticleTypes.LARGE_SMOKE, at.x + (r.nextDouble() - 0.5), at.y + (r.nextDouble() - 0.5) * 1.6, at.z + (r.nextDouble() - 0.5), 0, 0.02, 0);
                 }
             }
             case FxPayload.ERASE -> {

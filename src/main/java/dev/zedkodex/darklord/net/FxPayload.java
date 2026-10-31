@@ -18,6 +18,7 @@ public record FxPayload(int kind, int caster, int target, double x, double y, do
     public static final int SINGULARITY = 8;
     public static final int LIGHTNING = 9;
     public static final int CATACLYSM = 10;
+    public static final int HEARTBEAT = 11;
 
     public static final Type<FxPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(DarkLord.MODID, "fx"));
 

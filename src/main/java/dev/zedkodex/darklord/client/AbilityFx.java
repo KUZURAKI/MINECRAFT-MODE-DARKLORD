@@ -53,6 +53,8 @@ public final class AbilityFx {
     }
 
     private static final List<Fx> list = new ArrayList<>();
+    private static final MultiBufferSource.BufferSource DARK = MultiBufferSource.immediate(new com.mojang.blaze3d.vertex.ByteBufferBuilder(1 << 20));
+    private static final MultiBufferSource.BufferSource GLOW = MultiBufferSource.immediate(new com.mojang.blaze3d.vertex.ByteBufferBuilder(1 << 20));
 
     public static void add(FxPayload p) {
         list.add(new Fx(p, Util.getMillis()));
@@ -73,13 +75,16 @@ public final class AbilityFx {
                 FxKit.burst(lv, at, p.kind());
                 FxKit.shake(0.7f * FxKit.falloff(at, 20), 350);
             }
-            case FxPayload.CAST -> FxKit.burst(lv, at, p.kind());
             case FxPayload.DASH -> {
                 FxKit.burst(lv, at, p.kind());
                 FxKit.burst(lv, new Vec3(p.x2(), p.y2(), p.z2()), p.kind());
                 if (mc.player != null && p.caster() == mc.player.getId()) FxKit.flash(0x08000E, 0.6f);
             }
-            case FxPayload.ERASE -> FxKit.burst(lv, at, p.kind());
+            case FxPayload.ERASE -> {
+                FxKit.burst(lv, at, p.kind());
+                EraseShadows.add(lv.getEntity(p.target()));
+            }
+            case FxPayload.HEARTBEAT -> Heartbeat.start();
             case FxPayload.LIGHTNING -> {
                 FxKit.shake(0.6f * FxKit.falloff(at, 40), 500);
                 FxKit.flash(0xE8DDFF, 0.35f * FxKit.falloff(at, 60));
@@ -88,6 +93,10 @@ public final class AbilityFx {
             case FxPayload.CATACLYSM -> FxKit.cataclysm();
             default -> {
             }
+        }
+        if (mc.player != null && p.caster() == mc.player.getId() && p.kind() != FxPayload.CATACLYSM && p.kind() != FxPayload.HEARTBEAT
+                && p.kind() != FxPayload.CAST) {
+            FxKit.flash(0x06000C, 0.22f);
         }
     }
 
@@ -134,29 +143,23 @@ public final class AbilityFx {
         Vec3 at2 = new Vec3(d.x2(), d.y2(), d.z2());
         Entity target = lv.getEntity(d.target());
         AbstractClientPlayer caster = lv.getEntity(d.caster()) instanceof AbstractClientPlayer cp ? cp : null;
-        VertexConsumer dark = bs.getBuffer(RenderType.debugQuads());
-        VertexConsumer glow = bs.getBuffer(RenderType.lightning());
+        VertexConsumer dark = DARK.getBuffer(RenderType.debugQuads());
+        VertexConsumer glow = GLOW.getBuffer(RenderType.lightning());
         Vec3 upv = new Vec3(0, 1, 0);
+        Vec3 hand = caster != null ? handOf(caster, pt) : null;
         switch (d.kind()) {
             case FxPayload.CAST -> {
-                float k = 1f - t;
-                FxKit.blob(glow, at, 0.25f + 0.5f * t, 150, 60, 255, (int) (200 * k));
-                FxKit.ring(glow, at, FxKit.cam.subtract(at), 0.15f + 0.9f * t, 0.3f + 1.0f * t, 170, 90, 255, (int) (180 * k), 0);
-                FxKit.blob(dark, at, 0.4f + 0.4f * t, 2, 0, 6, (int) (160 * k));
             }
             case FxPayload.HANDS -> {
                 float k = 1f - Gfx.clamp(t / 0.6f);
                 FxKit.ring(dark, at.add(0, 0.04, 0), upv, 0.1f, 0.4f + 2.2f * Gfx.smooth(Gfx.clamp(t / 0.35f)), 4, 0, 8, (int) (220 * k), 0);
                 FxKit.ring(glow, at.add(0, 0.06, 0), upv, 0.9f + 2.4f * t, 1.1f + 2.6f * t, 120, 40, 255, (int) (160 * k), 0);
+                if (hand != null && t < 0.5f) GripFx.beam(bs, FxKit.cam, hand, at.add(0, 0.1, 0), Gfx.clamp(t / 0.12f), ts, 0x5A1EFF, 0xC8A0FF, 1f - t / 0.5f);
             }
             case FxPayload.ABYSS -> {
                 float k = 1f - Gfx.smooth(Gfx.clamp((t - 0.75f) / 0.25f));
-                for (int i = 0; i < 28; i++) {
-                    double a = ts * 5 + i * 0.55;
-                    double r = 2.0 * (1 - i / 28.0) + 0.2;
-                    Vec3 q = at.add(Math.cos(a) * r, i * 0.11, Math.sin(a) * r);
-                    FxKit.blob(dark, q, 0.35f * (1f - i / 40f), 3, 0, 8, (int) (170 * k));
-                }
+                Vec3 grab = target != null ? target.getPosition(pt).add(0, target.getBbHeight() * 0.6, 0) : at.add(0, 1.2, 0);
+                if (hand != null && t < 0.8f) GripFx.beam(bs, FxKit.cam, hand, grab, Gfx.clamp(t / 0.1f), ts, 0x5A1EFF, 0xC8A0FF, k);
                 FxKit.blob(glow, at.add(0, 1.2, 0), 2.4f, 90, 20, 200, (int) (60 * k));
                 FxKit.ring(glow, at.add(0, 0.08, 0), upv, 2.2f, 3.0f, 140, 50, 255, (int) (120 * k), 0);
             }
@@ -166,15 +169,7 @@ public final class AbilityFx {
             }
             case FxPayload.DASH -> {
                 float k = 1f - Gfx.smooth(t);
-                FxKit.segment(dark, at, at2, 0.32f, 0.32f, 3, 0, 8, (int) (180 * k), (int) (180 * k));
-                FxKit.segment(glow, at, at2, 0.06f, 0.06f, 160, 80, 255, (int) (200 * k), (int) (200 * k));
-                for (int i = 0; i <= 6; i++) {
-                    Vec3 q = at.lerp(at2, i / 6.0);
-                    int a = (int) (150 * k * (0.4f + 0.6f * i / 6f));
-                    FxKit.blob(dark, q.add(0, 0.6, 0), 0.3f, 4, 0, 8, a);
-                    FxKit.blob(dark, q, 0.45f, 4, 0, 8, a);
-                    FxKit.blob(dark, q.add(0, -0.7, 0), 0.38f, 4, 0, 8, a);
-                }
+                GripFx.beam(bs, FxKit.cam, at, at2, 1f, ts, 0x5A1EFF, 0xC8A0FF, k);
                 FxKit.ring(glow, at.add(0, -0.9, 0), upv, 0.2f + 2.6f * t, 0.5f + 3f * t, 150, 60, 255, (int) (200 * k), 0);
                 FxKit.ring(glow, at2.add(0, -0.9, 0), upv, 0.2f + 2.6f * t, 0.5f + 3f * t, 150, 60, 255, (int) (200 * k), 0);
             }
@@ -185,11 +180,7 @@ public final class AbilityFx {
                 Vec3 c = base.add(0, h / 2, 0);
                 if (t < 0.55f) {
                     float k = Gfx.clamp(t / 0.15f);
-                    for (int i = 0; i < 10; i++) {
-                        double a = ts * 6 + i * Math.PI / 5;
-                        Vec3 q = base.add(Math.cos(a) * w * 0.8, h * (i / 10.0), Math.sin(a) * w * 0.8);
-                        FxKit.blob(dark, q, 0.35f, 2, 0, 6, (int) (200 * k));
-                    }
+                    if (hand != null) GripFx.beam(bs, FxKit.cam, hand, c, Gfx.clamp(t / 0.1f), ts, 0x5A1EFF, 0xC8A0FF, 1f);
                     for (int i = 0; i < 3; i++) {
                         Vec3 tip = base.add((Math.sin(i * 7 + ts * 9)) * w * 0.5, h * (0.4 + 0.5 * Math.abs(Math.sin(i * 3 + ts * 5))), Math.cos(i * 5 + ts * 7) * w * 0.5);
                         FxKit.bolt(dark, base, tip, now / 60 + i * 31L, 0.035f, 5, 0, 10, (int) (230 * k), 0.35f);
@@ -198,8 +189,8 @@ public final class AbilityFx {
                     FxKit.ring(glow, base.add(0, 0.05, 0), upv, w * 1.4f * (1 - t), w * 1.7f * (1 - t) + 0.2f, 140, 50, 255, (int) (200 * k), 0);
                 } else {
                     float u = (t - 0.55f) / 0.45f;
-                    FxKit.sphere(dark, c, h * 0.6f * (1 - u), 3, 0, 8, (int) (200 * (1 - u)));
-                    FxKit.blob(glow, c, 0.5f + 2.5f * u, 200, 160, 255, (int) (220 * (1 - u)));
+                    FxKit.ring(dark, base.add(0, 0.04, 0), upv, 0f, w * 1.6f + 0.6f * u, 2, 0, 5, (int) (200 * (1 - u)), 0);
+                    FxKit.blob(glow, c, 0.5f + 2.5f * u, 120, 60, 220, (int) (120 * (1 - u)));
                     if (!f.fired) {
                         f.fired = true;
                         FxKit.shake(0.4f * FxKit.falloff(c, 30), 300);
@@ -210,22 +201,12 @@ public final class AbilityFx {
                 Vec3 a = target != null ? target.getPosition(pt).add(0, target.getBbHeight() / 2, 0) : at;
                 Vec3 b = caster != null ? caster.getPosition(pt).add(0, 1, 0) : at2;
                 float k = 1f - Gfx.smooth(Gfx.clamp((t - 0.6f) / 0.4f));
-                Vec3 dir = b.subtract(a);
-                Vec3 side = dir.cross(upv);
-                side = side.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : side.normalize();
-                Vec3 prev = a;
-                for (int i = 1; i <= 20; i++) {
-                    double s = i / 20.0;
-                    Vec3 q = a.lerp(b, s).add(side.scale(Math.sin(s * Math.PI * 2 + ts * 8) * 0.25 * Math.sin(Math.PI * s))).add(0, Math.sin(Math.PI * s) * 0.6, 0);
-                    int pulse = (int) (120 + 120 * Math.sin(i * 0.9 - ts * 22));
-                    FxKit.segment(dark, prev, q, 0.12f, 0.12f, 30, 0, 2, (int) (200 * k), (int) (200 * k));
-                    FxKit.segment(glow, prev, q, 0.035f, 0.035f, 220, 20, 40, (int) (pulse * k), (int) (pulse * k));
-                    prev = q;
-                }
+                GripFx.beam(bs, FxKit.cam, a, b, 1f, ts, 0xDC1428, 0xFF8C96, k);
                 FxKit.blob(glow, b, 0.9f, 200, 10, 30, (int) (90 * k));
             }
             case FxPayload.SINGULARITY -> {
                 float appear = Gfx.smooth(Gfx.clamp(t / 0.08f));
+                if (hand != null && t < 0.2f) GripFx.beam(bs, FxKit.cam, hand, at, Gfx.clamp(t / 0.05f), ts, 0x5A1EFF, 0xC8A0FF, 1f - t / 0.2f);
                 if (t < 0.9f) {
                     float r = (1.0f + 0.12f * (float) Math.sin(ts * 9)) * appear;
                     FxKit.blob(glow, at, 4.5f * appear, 90, 20, 200, 70);
@@ -254,26 +235,26 @@ public final class AbilityFx {
                 }
             }
             case FxPayload.LIGHTNING -> {
-                Vec3 hand = caster != null ? handOf(caster, pt) : at.add(0, 1.4, 0);
+                Vec3 from = hand != null ? hand : at.add(0, 1.4, 0);
                 Vec3 aim = target != null ? target.getPosition(pt).add(0, target.getBbHeight() * 0.55, 0) : at2;
                 if (t < 0.44f) {
                     float k = Gfx.clamp(t / 0.1f);
-                    FxKit.blob(glow, hand, 0.3f + 0.15f * (float) Math.sin(ts * 40), 190, 150, 255, (int) (230 * k));
+                    FxKit.blob(glow, from, 0.3f + 0.15f * (float) Math.sin(ts * 40), 190, 150, 255, (int) (230 * k));
                     for (int i = 0; i < 5; i++) {
                         long s = now / 40 + i * 17L;
                         java.util.Random r = new java.util.Random(s);
-                        Vec3 tip = hand.add((r.nextDouble() - 0.5) * 1.4, (r.nextDouble() - 0.5) * 1.4, (r.nextDouble() - 0.5) * 1.4);
-                        FxKit.bolt(glow, hand, tip, s, 0.025f, 210, 190, 255, (int) (220 * k), 0.45f);
+                        Vec3 tip = from.add((r.nextDouble() - 0.5) * 1.4, (r.nextDouble() - 0.5) * 1.4, (r.nextDouble() - 0.5) * 1.4);
+                        FxKit.bolt(glow, from, tip, s, 0.025f, 210, 190, 255, (int) (220 * k), 0.45f);
                     }
                 } else if (t < 0.88f) {
                     float k = 1f - Gfx.clamp((t - 0.7f) / 0.18f);
                     for (int i = 0; i < 3; i++) {
                         long s = now / 45 + i * 101L;
-                        FxKit.bolt(glow, hand, aim, s, 0.32f, 120, 70, 255, (int) (90 * k), 0.22f);
-                        FxKit.bolt(glow, hand, aim, s, 0.08f, 255, 255, 255, (int) (240 * k), 0.22f);
+                        FxKit.bolt(glow, from, aim, s, 0.32f, 120, 70, 255, (int) (90 * k), 0.22f);
+                        FxKit.bolt(glow, from, aim, s, 0.08f, 255, 255, 255, (int) (240 * k), 0.22f);
                     }
                     FxKit.blob(glow, aim, 1.8f, 210, 190, 255, (int) (200 * k));
-                    FxKit.blob(glow, hand, 0.6f, 230, 220, 255, (int) (220 * k));
+                    FxKit.blob(glow, from, 0.6f, 230, 220, 255, (int) (220 * k));
                     if (!f.fired) {
                         f.fired = true;
                         FxKit.shake(0.9f * FxKit.falloff(aim, 40), 600);
@@ -282,23 +263,18 @@ public final class AbilityFx {
                     }
                 }
             }
-            case FxPayload.CATACLYSM -> cataclysm(dark, glow, lv, f, at, at2, ts);
+            case FxPayload.CATACLYSM -> cataclysm(bs, dark, glow, lv, f, at, at2, ts, hand);
             default -> {
             }
         }
     }
 
-    private static void cataclysm(VertexConsumer dark, VertexConsumer glow, ClientLevel lv, Fx f, Vec3 c, Vec3 eye, float ts) {
+    private static void cataclysm(MultiBufferSource bs, VertexConsumer dark, VertexConsumer glow, ClientLevel lv, Fx f, Vec3 c, Vec3 eye, float ts, Vec3 hand) {
         Vec3 n = eye.subtract(c);
         Vec3 upv = new Vec3(0, 1, 0);
-        if (ts < 1.2f) {
-            float k = Gfx.clamp(ts / 0.6f);
-            for (int i = 0; i < 26; i++) {
-                double a = ts * 3 + i * 0.9;
-                double r = 6 * (1 - ((ts * 0.6 + i / 26.0) % 1.0));
-                Vec3 q = c.add(Math.cos(a) * r, Math.sin(a * 0.7) * r * 0.4, Math.sin(a) * r);
-                FxKit.blob(dark, q, 0.6f, 2, 0, 5, (int) (180 * k));
-            }
+        if (ts < 2.0f && hand != null) {
+            float k = 1f - Gfx.smooth(Gfx.clamp((ts - 1.6f) / 0.4f));
+            GripFx.beam(bs, FxKit.cam, hand, c, Gfx.clamp(ts / 0.5f), ts, 0xB4C8FF, 0xFFFFFF, k);
         }
         if (ts >= 1.0f && ts < 2.0f) {
             float k = Gfx.smooth((ts - 1.0f) / 1.0f);
@@ -400,6 +376,8 @@ public final class AbilityFx {
                 }
             }
             extra(bs, lv, f, pt, now);
+            DARK.endBatch();
+            GLOW.endBatch();
         }
         bs.endBatch(RenderType.debugQuads());
         bs.endBatch(RenderType.lightning());
